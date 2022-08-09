@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 num_iterations = 1000
-num_images = 1
+num_images = 10
 image_size = 256
 result_dir = "./results/"
 

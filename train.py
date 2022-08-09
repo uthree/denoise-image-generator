@@ -7,7 +7,9 @@ from dataset import *
 from denoising_diffusion_pytorch import GaussianDiffusion
 from model import init_unet
 
-BATCH_SIZE = 16
+import torchvision.transforms as transforms
+
+BATCH_SIZE = 10
 NUM_EPOCH = 500
 DATASET_SIZE = 50000
 IMAGE_SIZE = 256
@@ -22,11 +24,18 @@ else:
     unet = init_unet(dim=4, dim_mults=[1, 2, 4, 8, 16, 32])
     model = GaussianDiffusion(
         unet,
-        image_size = 256,
+        image_size = IMAGE_SIZE,
         timesteps = 1000,   # number of steps
         loss_type = 'l1'    # L1 or L2
     )
 
+aug = transforms.Compose([
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomApply([transforms.RandomRotation((-10, 10))], p=0.5),
+        transforms.RandomApply([transforms.RandomCrop((round(IMAGE_SIZE * 0.8), round(IMAGE_SIZE * 0.75)))], p=0.5),
+        transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    ])
 
 model.to(device)
 
@@ -36,7 +45,7 @@ bar_batch = tqdm(total=len(ds), position=0)
 
 dl = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True)
 
-optimizer = optim.RAdam(model.parameters())
+optimizer = optim.RAdam(model.parameters(), lr=8e-5)
 
 for i in range(NUM_EPOCH):
     for j, img in enumerate(dl):

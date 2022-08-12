@@ -9,9 +9,10 @@ from model import init_unet
 
 import torchvision.transforms as transforms
 
-BATCH_SIZE = 10
+BATCH_SIZE = 4
+BATCH_CHUNK = 1
 NUM_EPOCH = 500
-DATASET_SIZE = 50000
+DATASET_SIZE = 10000
 IMAGE_SIZE = 256
 
 ds = ImageDataset(source_dir_pathes=["/mnt/d/local-develop/lineart2image_data_generator/colorized_256x/"], max_len=DATASET_SIZE, size=IMAGE_SIZE)
@@ -21,7 +22,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if os.path.exists('./model.pt'):
     model = torch.load('./model.pt')
 else:
-    unet = init_unet(dim=4, dim_mults=[1, 2, 4, 8, 16, 32])
+    unet = init_unet(dim=8, dim_mults=[1, 2, 8, 16, 32, 64])
     model = GaussianDiffusion(
         unet,
         image_size = IMAGE_SIZE,
@@ -45,18 +46,19 @@ bar_batch = tqdm(total=len(ds), position=0)
 
 dl = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True)
 
-optimizer = optim.RAdam(model.parameters(), lr=8e-5)
+optimizer = optim.RAdam(model.parameters(), lr=1e-5)
 
 for i in range(NUM_EPOCH):
     for j, img in enumerate(dl):
         N, C, H, W = img.shape
         optimizer.zero_grad()
         img = img.to(device)
-        loss = model(img)
-        loss.backward()
+        for c in img.chunk(BATCH_CHUNK, dim=0):
+            loss = model(c)
+            loss.backward()
+            tqdm.write(f"Loss: {loss.item()}")
         optimizer.step()
 
-        tqdm.write(f"Loss: {loss.item()}")
         if j % 200 == 0:
             tqdm.write("Model is saved!")
             torch.save(model, './model.pt')

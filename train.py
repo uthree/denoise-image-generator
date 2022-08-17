@@ -10,10 +10,10 @@ from model import init_unet
 
 import torchvision.transforms as transforms
 
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 BATCH_CHUNK = 4
 NUM_EPOCH = 500
-DATASET_SIZE = 5000
+DATASET_SIZE = 1000
 IMAGE_SIZE = 256
 
 ds = ImageDataset(source_dir_pathes=["/mnt/d/local-develop/lineart2image_data_generator/colorized_256x/"], max_len=DATASET_SIZE, size=IMAGE_SIZE)
@@ -23,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if os.path.exists('./model.pt'):
     model = torch.load('./model.pt')
 else:
-    unet = init_unet(dim=4, dim_mults=[1, 2, 4, 8, 16])
+    unet = init_unet(dim=32, dim_mults=[1, 2, 4, 8, 16])
     model = GaussianDiffusion(
         unet,
         image_size = IMAGE_SIZE,
@@ -54,10 +54,12 @@ for i in range(NUM_EPOCH):
         optimizer.zero_grad()
         img = aug(img)
         img = img.to(device)
+        loss_list = []
         for c in img.chunk(BATCH_CHUNK, dim=0):
             loss = model(c)
             loss.backward()
-            tqdm.write(f"Loss: {loss.item()}")
+            loss_list.append(loss.item())
+        tqdm.write(f"Loss: {sum(loss_list)/len(loss_list):.4f}")
         optimizer.step()
 
         if j % 200 == 0:

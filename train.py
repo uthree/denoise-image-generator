@@ -2,6 +2,7 @@ import torch
 import torch.optim as optim
 import os
 import random
+import math
 
 from dataset import *
 from denoising_diffusion_pytorch import GaussianDiffusion
@@ -9,10 +10,10 @@ from model import init_unet
 
 import torchvision.transforms as transforms
 
-BATCH_SIZE = 4
-BATCH_CHUNK = 1
+BATCH_SIZE = 16
+BATCH_CHUNK = 4
 NUM_EPOCH = 500
-DATASET_SIZE = 10000
+DATASET_SIZE = 5000
 IMAGE_SIZE = 256
 
 ds = ImageDataset(source_dir_pathes=["/mnt/d/local-develop/lineart2image_data_generator/colorized_256x/"], max_len=DATASET_SIZE, size=IMAGE_SIZE)
@@ -22,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if os.path.exists('./model.pt'):
     model = torch.load('./model.pt')
 else:
-    unet = init_unet(dim=8, dim_mults=[1, 2, 8, 16, 32, 64])
+    unet = init_unet(dim=4, dim_mults=[1, 2, 4, 8, 16])
     model = GaussianDiffusion(
         unet,
         image_size = IMAGE_SIZE,
@@ -40,18 +41,18 @@ aug = transforms.Compose([
 
 model.to(device)
 
-MSE = torch.nn.MSELoss()
 bar_epoch = tqdm(total=len(ds) * NUM_EPOCH, position=1)
 bar_batch = tqdm(total=len(ds), position=0)
 
 dl = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True)
 
-optimizer = optim.RAdam(model.parameters(), lr=1e-5)
+optimizer = optim.RAdam(model.parameters())
 
 for i in range(NUM_EPOCH):
     for j, img in enumerate(dl):
         N, C, H, W = img.shape
         optimizer.zero_grad()
+        img = aug(img)
         img = img.to(device)
         for c in img.chunk(BATCH_CHUNK, dim=0):
             loss = model(c)

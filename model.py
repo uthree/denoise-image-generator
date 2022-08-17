@@ -17,7 +17,7 @@ class ChannelNorm(nn.Module):
         return x
 
 class ConvNeXtBlock(nn.Module):
-    def __init__(self, input_channels, output_channels, kernel_size, stride, padding, dim_ffn=None):
+    def __init__(self, input_channels, output_channels, kernel_size, stride, padding, dim_ffn=None, dropout=0.1):
         super(ConvNeXtBlock, self).__init__()
         if dim_ffn == None:
             dim_ffn = input_channels * 4
@@ -26,17 +26,20 @@ class ConvNeXtBlock(nn.Module):
         self.c2 = nn.Conv2d(input_channels, dim_ffn, 1, 1, 0)
         self.gelu = nn.GELU()
         self.c3 = nn.Conv2d(dim_ffn, output_channels, 1, 1, 0)
+        self.dropout = nn.Dropout2d(p=dropout)
 
     def forward(self, x):
         res = x
         x = self.c1(x)
+        x = self.dropout(x)
         x = self.norm(x)
         x = self.c2(x)
+        x = self.dropout(x)
         x = self.gelu(x)
         x = self.c3(x)
         return x
 
-def init_unet(dim = 4, dim_mults=[1, 2, 4, 8, 16, 32]):
+def init_unet(dim = 4, dim_mults=[1, 2, 4, 8, 16, 32], dropout=0.1):
     unet = Unet(
             dim = dim,
             dim_mults = tuple(dim_mults),
@@ -48,16 +51,16 @@ def init_unet(dim = 4, dim_mults=[1, 2, 4, 8, 16, 32]):
         prev_c = dim * internal_dim_mults[i-1] if i > 0 else dim * internal_dim_mults[0]
         j = -(i+1)
 
-        unet.downs[i][0].block1.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.downs[i][0].block1.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.downs[i][0].block1.act = nn.Identity()
         unet.downs[i][0].block1.norm = nn.Identity()
-        unet.downs[i][0].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.downs[i][0].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.downs[i][0].block2.act = nn.Identity()
         unet.downs[i][0].block2.norm = nn.Identity()
-        unet.downs[i][1].block1.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.downs[i][1].block1.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.downs[i][1].block1.act = nn.Identity()
         unet.downs[i][1].block1.norm = nn.Identity()
-        unet.downs[i][1].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.downs[i][1].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.downs[i][1].block2.act = nn.Identity()
         unet.downs[i][1].block2.norm = nn.Identity()
 
@@ -66,16 +69,16 @@ def init_unet(dim = 4, dim_mults=[1, 2, 4, 8, 16, 32]):
         prev_c = dim * dim_mults[i-1] if i > 0 else dim * dim_mults[0]
         j = -(i+1)
 
-        unet.ups[j][0].block1.proj = ConvNeXtBlock(c+prev_c, c, 7, 1, 3)
+        unet.ups[j][0].block1.proj = ConvNeXtBlock(c+prev_c, c, 7, 1, 3, dropout=dropout)
         unet.ups[i][0].block1.act = nn.Identity()
         unet.ups[i][0].block1.norm = nn.Identity()
-        unet.ups[j][0].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.ups[j][0].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.ups[i][0].block2.act = nn.Identity()
         unet.ups[i][0].block2.norm = nn.Identity()
-        unet.ups[j][1].block1.proj = ConvNeXtBlock(c+prev_c, c, 7, 1, 3)
+        unet.ups[j][1].block1.proj = ConvNeXtBlock(c+prev_c, c, 7, 1, 3, dropout=dropout)
         unet.ups[i][1].block1.act = nn.Identity()
         unet.ups[i][1].block1.norm = nn.Identity()
-        unet.ups[j][1].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3)
+        unet.ups[j][1].block2.proj = ConvNeXtBlock(c, c, 7, 1, 3, dropout=dropout)
         unet.ups[i][1].block2.act = nn.Identity()
         unet.ups[i][1].block2.norm = nn.Identity()
 

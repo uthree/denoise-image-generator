@@ -13,7 +13,7 @@ import torchvision.transforms as transforms
 BATCH_SIZE = 4
 BATCH_CHUNK = 4
 NUM_EPOCH = 500
-DATASET_SIZE = 1000
+DATASET_SIZE = 20000
 IMAGE_SIZE = 256
 
 ds = ImageDataset(source_dir_pathes=["/mnt/d/local-develop/lineart2image_data_generator/colorized_256x/"], max_len=DATASET_SIZE, size=IMAGE_SIZE)
@@ -23,7 +23,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 if os.path.exists('./model.pt'):
     model = torch.load('./model.pt')
 else:
-    unet = init_unet(dim=32, dim_mults=[1, 2, 4, 8, 16])
+    unet = init_unet(dim=8, dim_mults=[1, 2, 4, 8, 16])
     model = GaussianDiffusion(
         unet,
         image_size = IMAGE_SIZE,
